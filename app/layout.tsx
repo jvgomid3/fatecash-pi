@@ -10,9 +10,13 @@ import { NavigationHelp } from "@/components/navigation-help"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Fatecash - Organização Financeira Pessoal",
+  title: "Fatecash - Finanças Pessoais",
   description: "Gerencie suas finanças pessoais de forma inteligente e organizada",
+  icons: {
+    icon: "/favicon.ico",
+  },
 }
+
 
 export default function RootLayout({
   children,
