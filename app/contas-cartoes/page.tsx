@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
-import { Plus, CreditCard, Landmark, Edit, Trash2 } from "lucide-react"
+import { Plus, CreditCard, Landmark, Edit, Trash2, Volume2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAccessibility } from "@/hooks/use-accessibility"
+import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis"
 
 interface Account {
   id: number
@@ -71,6 +73,12 @@ export default function ContasCartoesPage() {
     number: "",
   })
 
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
+  const { readPageContent } = useAccessibility()
+  const { speak } = useSpeechSynthesis()
+
   const addAccount = () => {
     if (newAccount.name && newAccount.type && newAccount.bank) {
       const account: Account = {
@@ -84,6 +92,39 @@ export default function ContasCartoesPage() {
       setAccounts([...accounts, account])
       setNewAccount({ name: "", type: "", balance: "", bank: "", number: "" })
     }
+  }
+
+  const editAccount = () => {
+    if (editingAccount && newAccount.name && newAccount.type && newAccount.bank) {
+      const updatedAccounts = accounts.map((account) =>
+        account.id === editingAccount.id
+          ? {
+              ...account,
+              name: newAccount.name,
+              type: newAccount.type as "checking" | "savings" | "credit",
+              balance: Number.parseFloat(newAccount.balance) || account.balance,
+              bank: newAccount.bank,
+              number: newAccount.number || "**** ****",
+            }
+          : account,
+      )
+      setAccounts(updatedAccounts)
+      setEditingAccount(null)
+      setIsEditDialogOpen(false)
+      setNewAccount({ name: "", type: "", balance: "", bank: "", number: "" })
+    }
+  }
+
+  const startEdit = (account: Account) => {
+    setEditingAccount(account)
+    setNewAccount({
+      name: account.name,
+      type: account.type,
+      balance: account.balance.toString(),
+      bank: account.bank,
+      number: account.number,
+    })
+    setIsEditDialogOpen(true)
   }
 
   const deleteAccount = (id: number) => {
@@ -115,6 +156,22 @@ export default function ContasCartoesPage() {
         return "bg-gray-100 text-gray-800"
     }
   }
+
+  const readAccountInfo = (account: Account) => {
+    const balanceType = account.type === "credit" ? "Fatura atual" : "Saldo disponível"
+    const accountText = `${account.name}. Tipo: ${getAccountTypeLabel(account.type)}. 
+    Banco: ${account.bank}. Número: ${account.number}. 
+    ${balanceType}: ${Math.abs(account.balance).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`
+
+    speak(accountText)
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      readPageContent()
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [readPageContent])
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -194,10 +251,76 @@ export default function ContasCartoesPage() {
               </div>
             </DialogContent>
           </Dialog>
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar Conta</DialogTitle>
+                <DialogDescription>Atualize as informações da sua conta bancária ou cartão.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-name">Nome da Conta</Label>
+                  <Input
+                    id="edit-name"
+                    value={newAccount.name}
+                    onChange={(e) => setNewAccount({ ...newAccount, name: e.target.value })}
+                    placeholder="Ex: Conta Corrente Santander"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-type">Tipo</Label>
+                  <Select
+                    value={newAccount.type}
+                    onValueChange={(value) => setNewAccount({ ...newAccount, type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="checking">Conta Corrente</SelectItem>
+                      <SelectItem value="savings">Poupança</SelectItem>
+                      <SelectItem value="credit">Cartão de Crédito</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit-bank">Banco</Label>
+                  <Input
+                    id="edit-bank"
+                    value={newAccount.bank}
+                    onChange={(e) => setNewAccount({ ...newAccount, bank: e.target.value })}
+                    placeholder="Ex: Banco do Brasil"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-number">Número da Conta/Cartão</Label>
+                  <Input
+                    id="edit-number"
+                    value={newAccount.number}
+                    onChange={(e) => setNewAccount({ ...newAccount, number: e.target.value })}
+                    placeholder="**** 1234"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-balance">Saldo Atual (R$)</Label>
+                  <Input
+                    id="edit-balance"
+                    type="number"
+                    value={newAccount.balance}
+                    onChange={(e) => setNewAccount({ ...newAccount, balance: e.target.value })}
+                    placeholder="0,00"
+                  />
+                </div>
+                <Button onClick={editAccount} className="w-full">
+                  Salvar Alterações
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </header>
 
-      <main className="flex-1 space-y-6 p-6">
+      <main className="flex-1 space-y-6 p-6" role="main" aria-label="Gerenciamento de contas bancárias e cartões">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {accounts.map((account) => (
             <Card key={account.id}>
@@ -212,7 +335,15 @@ export default function ContasCartoesPage() {
                     <Badge className={getAccountTypeColor(account.type)}>{getAccountTypeLabel(account.type)}</Badge>
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => readAccountInfo(account)}
+                      aria-label={`Ler informações da conta ${account.name}`}
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => startEdit(account)}>
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => deleteAccount(account.id)}>

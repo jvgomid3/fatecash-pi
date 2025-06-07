@@ -1,13 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Progress } from "@/components/ui/progress"
-import { Plus, Target } from "lucide-react"
+import { Plus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -16,6 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { useAccessibility } from "@/hooks/use-accessibility"
+import { AccessibleGoalCard } from "@/components/accessible-goal-card"
 
 interface Goal {
   id: number
@@ -61,6 +61,11 @@ export default function MetasPage() {
     category: "",
   })
 
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
+  const { readPageContent } = useAccessibility()
+
   const addGoal = () => {
     if (newGoal.title && newGoal.targetAmount && newGoal.deadline) {
       const goal: Goal = {
@@ -75,6 +80,48 @@ export default function MetasPage() {
       setNewGoal({ title: "", targetAmount: "", deadline: "", category: "" })
     }
   }
+
+  const editGoal = () => {
+    if (editingGoal && newGoal.title && newGoal.targetAmount) {
+      const updatedGoals = goals.map((goal) =>
+        goal.id === editingGoal.id
+          ? {
+              ...goal,
+              title: newGoal.title,
+              targetAmount: Number.parseFloat(newGoal.targetAmount),
+              deadline: newGoal.deadline,
+              category: newGoal.category || "Geral",
+            }
+          : goal,
+      )
+      setGoals(updatedGoals)
+      setEditingGoal(null)
+      setIsEditDialogOpen(false)
+      setNewGoal({ title: "", targetAmount: "", deadline: "", category: "" })
+    }
+  }
+
+  const startEdit = (goal: Goal) => {
+    setEditingGoal(goal)
+    setNewGoal({
+      title: goal.title,
+      targetAmount: goal.targetAmount.toString(),
+      deadline: goal.deadline,
+      category: goal.category,
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const deleteGoal = (id: number) => {
+    setGoals(goals.filter((goal) => goal.id !== id))
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      readPageContent()
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [readPageContent])
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -138,59 +185,64 @@ export default function MetasPage() {
               </div>
             </DialogContent>
           </Dialog>
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar Meta</DialogTitle>
+                <DialogDescription>Atualize as informações da sua meta financeira.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-title">Título da Meta</Label>
+                  <Input
+                    id="edit-title"
+                    value={newGoal.title}
+                    onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })}
+                    placeholder="Ex: Viagem para o Japão"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-amount">Valor Objetivo (R$)</Label>
+                  <Input
+                    id="edit-amount"
+                    type="number"
+                    value={newGoal.targetAmount}
+                    onChange={(e) => setNewGoal({ ...newGoal, targetAmount: e.target.value })}
+                    placeholder="0,00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-deadline">Data Limite</Label>
+                  <Input
+                    id="edit-deadline"
+                    type="date"
+                    value={newGoal.deadline}
+                    onChange={(e) => setNewGoal({ ...newGoal, deadline: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-category">Categoria</Label>
+                  <Input
+                    id="edit-category"
+                    value={newGoal.category}
+                    onChange={(e) => setNewGoal({ ...newGoal, category: e.target.value })}
+                    placeholder="Ex: Viagem, Veículo, Casa"
+                  />
+                </div>
+                <Button onClick={editGoal} className="w-full">
+                  Salvar Alterações
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </header>
 
-      <main className="flex-1 space-y-6 p-6">
+      <main className="flex-1 space-y-6 p-6" role="main" aria-label="Gerenciamento de metas financeiras">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {goals.map((goal) => {
-            const progress = (goal.currentAmount / goal.targetAmount) * 100
-            const remaining = goal.targetAmount - goal.currentAmount
-
-            return (
-              <Card key={goal.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <Target className="h-5 w-5 text-primary" />
-                    <span className="text-sm text-muted-foreground">{goal.category}</span>
-                  </div>
-                  <CardTitle className="text-lg">{goal.title}</CardTitle>
-                  <CardDescription>Meta até {new Date(goal.deadline).toLocaleDateString("pt-BR")}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>Progresso</span>
-                      <span>{progress.toFixed(1)}%</span>
-                    </div>
-                    <Progress value={progress} className="h-2" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Atual</p>
-                      <p className="font-medium text-green-600">
-                        R$ {goal.currentAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Faltam</p>
-                      <p className="font-medium">
-                        R$ {remaining.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <p className="text-sm text-muted-foreground mb-2">Meta Total</p>
-                    <p className="text-xl font-bold">
-                      R$ {goal.targetAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+          {goals.map((goal) => (
+            <AccessibleGoalCard key={goal.id} goal={goal} onEdit={startEdit} onDelete={deleteGoal} />
+          ))}
         </div>
       </main>
     </div>

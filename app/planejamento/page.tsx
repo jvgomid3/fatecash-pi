@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { useAccessibility } from "@/hooks/use-accessibility"
+import { useEffect } from "react"
 
 const monthlyData = [
   { month: "Jan", receita: 5800, gastos: 3200, economia: 2600 },
@@ -21,6 +23,15 @@ const monthlyData = [
 ]
 
 export default function PlanejamentoPage() {
+  const { readPageContent } = useAccessibility()
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      readPageContent()
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [readPageContent])
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -30,7 +41,7 @@ export default function PlanejamentoPage() {
         </div>
       </header>
 
-      <main className="flex-1 space-y-6 p-6">
+      <main className="flex-1 space-y-6 p-6" role="main" aria-label="Planejamento financeiro mensal e anual">
         <Tabs defaultValue="mensal" className="space-y-6">
           <TabsList>
             <TabsTrigger value="mensal">Planejamento Mensal</TabsTrigger>
