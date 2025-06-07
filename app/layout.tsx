@@ -12,7 +12,6 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Fatecash - Organização Financeira Pessoal",
   description: "Gerencie suas finanças pessoais de forma inteligente e organizada",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({
