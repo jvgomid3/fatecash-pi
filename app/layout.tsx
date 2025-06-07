@@ -4,12 +4,15 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { AccessibilityPanel } from "@/components/accessibility-panel"
+import { NavigationHelp } from "@/components/navigation-help"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Fatecash - Organização Financeira Pessoal",
-  description: "Gerencie suas finanças pessoais de forma inteligente e organizada"
+  description: "Gerencie suas finanças pessoais de forma inteligente e organizada",
+    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -23,6 +26,8 @@ export default function RootLayout({
         <SidebarProvider>
           <AppSidebar />
           <main className="flex-1 overflow-auto">{children}</main>
+          <AccessibilityPanel />
+          <NavigationHelp />
         </SidebarProvider>
       </body>
     </html>

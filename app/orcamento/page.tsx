@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Progress } from "@/components/ui/progress"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
+import { useAccessibility } from "@/hooks/use-accessibility"
 
 interface BudgetCategory {
   id: number
@@ -25,6 +26,15 @@ export default function OrcamentoPage() {
     { id: 7, name: "Outros", budgeted: 300, spent: 260, color: "#6b7280" },
   ])
 
+  const { readPageContent } = useAccessibility()
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      readPageContent()
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [readPageContent])
+
   const totalBudgeted = categories.reduce((sum, cat) => sum + cat.budgeted, 0)
   const totalSpent = categories.reduce((sum, cat) => sum + cat.spent, 0)
   const overallProgress = (totalSpent / totalBudgeted) * 100
@@ -44,7 +54,7 @@ export default function OrcamentoPage() {
         </div>
       </header>
 
-      <main className="flex-1 space-y-6 p-6">
+      <main className="flex-1 space-y-6 p-6" role="main" aria-label="Painel de controle de orçamento mensal">
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader>

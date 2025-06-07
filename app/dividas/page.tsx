@@ -1,13 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
 import { Plus, AlertTriangle, Calendar, DollarSign } from "lucide-react"
 import {
   Dialog,
@@ -17,6 +15,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { useAccessibility } from "@/hooks/use-accessibility"
+import { AccessibleDebtCard } from "@/components/accessible-debt-card"
 
 interface Debt {
   id: number
@@ -73,6 +73,11 @@ export default function DividasPage() {
     type: "",
   })
 
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
+  const { readPageContent } = useAccessibility()
+
   const addDebt = () => {
     if (newDebt.name && newDebt.totalAmount && newDebt.remainingAmount) {
       const debt: Debt = {
@@ -98,6 +103,55 @@ export default function DividasPage() {
     }
   }
 
+  const editDebt = () => {
+    if (editingDebt && newDebt.name && newDebt.totalAmount && newDebt.remainingAmount) {
+      const updatedDebts = debts.map((debt) =>
+        debt.id === editingDebt.id
+          ? {
+              ...debt,
+              name: newDebt.name,
+              totalAmount: Number.parseFloat(newDebt.totalAmount),
+              remainingAmount: Number.parseFloat(newDebt.remainingAmount),
+              monthlyPayment: Number.parseFloat(newDebt.monthlyPayment) || 0,
+              dueDate: newDebt.dueDate,
+              interestRate: Number.parseFloat(newDebt.interestRate) || 0,
+              type: newDebt.type || "Outros",
+            }
+          : debt,
+      )
+      setDebts(updatedDebts)
+      setEditingDebt(null)
+      setIsEditDialogOpen(false)
+      setNewDebt({
+        name: "",
+        totalAmount: "",
+        remainingAmount: "",
+        monthlyPayment: "",
+        dueDate: "",
+        interestRate: "",
+        type: "",
+      })
+    }
+  }
+
+  const startEdit = (debt: Debt) => {
+    setEditingDebt(debt)
+    setNewDebt({
+      name: debt.name,
+      totalAmount: debt.totalAmount.toString(),
+      remainingAmount: debt.remainingAmount.toString(),
+      monthlyPayment: debt.monthlyPayment.toString(),
+      dueDate: debt.dueDate,
+      interestRate: debt.interestRate.toString(),
+      type: debt.type,
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const deleteDebt = (id: number) => {
+    setDebts(debts.filter((debt) => debt.id !== id))
+  }
+
   const totalDebt = debts.reduce((sum, debt) => sum + debt.remainingAmount, 0)
   const totalMonthlyPayments = debts.reduce((sum, debt) => sum + debt.monthlyPayment, 0)
 
@@ -113,6 +167,13 @@ export default function DividasPage() {
         return "bg-gray-100 text-gray-800"
     }
   }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      readPageContent()
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [readPageContent])
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -213,10 +274,97 @@ export default function DividasPage() {
               </div>
             </DialogContent>
           </Dialog>
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar Dívida</DialogTitle>
+                <DialogDescription>Atualize as informações da sua dívida.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-name">Nome da Dívida</Label>
+                  <Input
+                    id="edit-name"
+                    value={newDebt.name}
+                    onChange={(e) => setNewDebt({ ...newDebt, name: e.target.value })}
+                    placeholder="Ex: Financiamento da Casa"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-totalAmount">Valor Total (R$)</Label>
+                    <Input
+                      id="edit-totalAmount"
+                      type="number"
+                      value={newDebt.totalAmount}
+                      onChange={(e) => setNewDebt({ ...newDebt, totalAmount: e.target.value })}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-remainingAmount">Valor Restante (R$)</Label>
+                    <Input
+                      id="edit-remainingAmount"
+                      type="number"
+                      value={newDebt.remainingAmount}
+                      onChange={(e) => setNewDebt({ ...newDebt, remainingAmount: e.target.value })}
+                      placeholder="0,00"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-monthlyPayment">Parcela Mensal (R$)</Label>
+                    <Input
+                      id="edit-monthlyPayment"
+                      type="number"
+                      value={newDebt.monthlyPayment}
+                      onChange={(e) => setNewDebt({ ...newDebt, monthlyPayment: e.target.value })}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-interestRate">Taxa de Juros (%)</Label>
+                    <Input
+                      id="edit-interestRate"
+                      type="number"
+                      step="0.1"
+                      value={newDebt.interestRate}
+                      onChange={(e) => setNewDebt({ ...newDebt, interestRate: e.target.value })}
+                      placeholder="0,0"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-dueDate">Data de Quitação</Label>
+                    <Input
+                      id="edit-dueDate"
+                      type="date"
+                      value={newDebt.dueDate}
+                      onChange={(e) => setNewDebt({ ...newDebt, dueDate: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-type">Tipo</Label>
+                    <Input
+                      id="edit-type"
+                      value={newDebt.type}
+                      onChange={(e) => setNewDebt({ ...newDebt, type: e.target.value })}
+                      placeholder="Ex: Financiamento, Cartão"
+                    />
+                  </div>
+                </div>
+                <Button onClick={editDebt} className="w-full">
+                  Salvar Alterações
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </header>
 
-      <main className="flex-1 space-y-6 p-6">
+      <main className="flex-1 space-y-6 p-6" role="main" aria-label="Controle e gerenciamento de dívidas">
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader>
@@ -274,62 +422,9 @@ export default function DividasPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-          {debts.map((debt) => {
-            const progress = ((debt.totalAmount - debt.remainingAmount) / debt.totalAmount) * 100
-            const monthsRemaining = debt.monthlyPayment > 0 ? Math.ceil(debt.remainingAmount / debt.monthlyPayment) : 0
-
-            return (
-              <Card key={debt.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <Badge className={getDebtTypeColor(debt.type)}>{debt.type}</Badge>
-                    <span className="text-sm text-muted-foreground">{debt.interestRate}% a.m.</span>
-                  </div>
-                  <CardTitle className="text-lg">{debt.name}</CardTitle>
-                  <CardDescription>
-                    Quitação prevista: {new Date(debt.dueDate).toLocaleDateString("pt-BR")}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>Progresso de Quitação</span>
-                      <span>{progress.toFixed(1)}%</span>
-                    </div>
-                    <Progress value={progress} className="h-2" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Valor Restante</p>
-                      <p className="font-medium text-red-600">
-                        R$ {debt.remainingAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Parcela Mensal</p>
-                      <p className="font-medium">
-                        R$ {debt.monthlyPayment.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Valor Total</p>
-                      <p className="font-medium">
-                        R$ {debt.totalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Meses Restantes</p>
-                      <p className="font-medium">{monthsRemaining > 0 ? `${monthsRemaining} meses` : "N/A"}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+          {debts.map((debt) => (
+            <AccessibleDebtCard key={debt.id} debt={debt} onEdit={startEdit} onDelete={deleteDebt} />
+          ))}
         </div>
 
         {debts.length === 0 && (

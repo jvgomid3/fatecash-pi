@@ -3,6 +3,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ArrowDown, ArrowUp, TrendingUp, TrendingDown } from "lucide-react"
+import { useEffect } from "react"
+import { useAccessibility } from "@/hooks/use-accessibility"
 
 const transactions = [
   { id: 1, description: "Salário", amount: 5800.0, type: "income", date: "2024-01-15", account: "Conta Corrente BB" },
@@ -52,6 +54,14 @@ const accounts = [
 
 export default function CarteiraPage() {
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0)
+  const { readPageContent } = useAccessibility()
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      readPageContent()
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [readPageContent])
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -62,7 +72,7 @@ export default function CarteiraPage() {
         </div>
       </header>
 
-      <main className="flex-1 space-y-6 p-6">
+      <main className="flex-1 space-y-6 p-6" role="main" aria-label="Visão consolidada da carteira financeira">
         <Card>
           <CardHeader>
             <CardTitle>Patrimônio Total</CardTitle>
