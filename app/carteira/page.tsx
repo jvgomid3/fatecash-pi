@@ -5,6 +5,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ArrowDown, ArrowUp, TrendingUp, TrendingDown } from "lucide-react"
 import { useEffect } from "react"
 import { useAccessibility } from "@/hooks/use-accessibility"
+import { useAuth } from "@/hooks/useAuth"
 
 const transactions = [
   { id: 1, description: "Salário", amount: 5800.0, type: "income", date: "2024-01-15", account: "Conta Corrente BB" },
@@ -53,6 +54,8 @@ const accounts = [
 ]
 
 export default function CarteiraPage() {
+  useAuth()
+  
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0)
   const { readPageContent } = useAccessibility()
 

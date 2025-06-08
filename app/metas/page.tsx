@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { useAccessibility } from "@/hooks/use-accessibility"
 import { AccessibleGoalCard } from "@/components/accessible-goal-card"
+import { useAuth } from "@/hooks/useAuth"
 
 interface Goal {
   id: number
@@ -27,6 +28,8 @@ interface Goal {
 }
 
 export default function MetasPage() {
+  useAuth()
+  
   const [goals, setGoals] = useState<Goal[]>([
     {
       id: 1,

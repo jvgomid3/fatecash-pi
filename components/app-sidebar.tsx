@@ -15,6 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { LogoutButton } from "./logout-button"
 
 const menuItems = [
   {
@@ -60,13 +61,18 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="border-b p-6">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black">
-            <DollarSign className="h-4 w-4 text-green-500" />
+        <div className="flex items-center">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black">
+              <DollarSign className="h-4 w-4 text-green-500" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold">Fatecash</h1>
+              <p className="text-xs text-muted-foreground">Finanças Pessoais</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-semibold">Fatecash</h1>
-            <p className="text-xs text-muted-foreground">Finanças Pessoais</p>
+          <div className="ml-auto">
+            <LogoutButton />
           </div>
         </div>
       </SidebarHeader>
