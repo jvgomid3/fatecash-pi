@@ -6,6 +6,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Progress } from "@/components/ui/progress"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { useAccessibility } from "@/hooks/use-accessibility"
+import { useAuth } from "@/hooks/useAuth"
 
 interface BudgetCategory {
   id: number
@@ -16,6 +17,8 @@ interface BudgetCategory {
 }
 
 export default function OrcamentoPage() {
+  useAuth()
+
   const [categories, setCategories] = useState<BudgetCategory[]>([
     { id: 1, name: "Alimentação", budgeted: 800, spent: 650, color: "#ef4444" },
     { id: 2, name: "Transporte", budgeted: 400, spent: 380, color: "#f97316" },

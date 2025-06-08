@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { useAccessibility } from "@/hooks/use-accessibility"
 import { AccessibleDebtCard } from "@/components/accessible-debt-card"
+import { useAuth } from "@/hooks/useAuth"
 
 interface Debt {
   id: number
@@ -30,6 +31,8 @@ interface Debt {
 }
 
 export default function DividasPage() {
+  useAuth()
+  
   const [debts, setDebts] = useState<Debt[]>([
     {
       id: 1,

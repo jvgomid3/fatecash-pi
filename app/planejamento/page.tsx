@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { useAccessibility } from "@/hooks/use-accessibility"
 import { useEffect } from "react"
+import { useAuth } from "@/hooks/useAuth"
 
 const monthlyData = [
   { month: "Jan", receita: 5800, gastos: 3200, economia: 2600 },
@@ -23,6 +24,8 @@ const monthlyData = [
 ]
 
 export default function PlanejamentoPage() {
+  useAuth()
+  
   const { readPageContent } = useAccessibility()
 
   useEffect(() => {

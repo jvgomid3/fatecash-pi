@@ -19,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAccessibility } from "@/hooks/use-accessibility"
 import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis"
+import { useAuth } from "@/hooks/useAuth"
 
 interface Account {
   id: number
@@ -30,6 +31,8 @@ interface Account {
 }
 
 export default function ContasCartoesPage() {
+  useAuth()
+  
   const [accounts, setAccounts] = useState<Account[]>([
     {
       id: 1,
