@@ -15,6 +15,7 @@ export interface ILoginRequest {
 
 export interface ILoginResponse {
   access_token: string
+  id: string
 }
 
 export const login = async (data: ILoginRequest): Promise<ILoginResponse> => {
@@ -55,7 +56,8 @@ export default function LoginForm() {
 
       if (user && user.access_token) {
         console.log("Login bem-sucedido:", user)
-        localStorage.setItem("token", user.access_token)
+        localStorage.setItem("token", user.access_token);
+        localStorage.setItem("user_id", user.id);
         router.push("/dashboard")
       } else {
         console.error("Token de acesso não retornado")
