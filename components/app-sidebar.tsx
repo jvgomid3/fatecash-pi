@@ -20,7 +20,7 @@ import { LogoutButton } from "./logout-button"
 const menuItems = [
   {
     title: "Visão Geral",
-    url: "/",
+    url: "/dashboard",
     icon: Home,
   },
   {

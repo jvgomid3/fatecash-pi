@@ -27,60 +27,105 @@ interface Goal {
   category: string
 }
 
+export interface IGoalRequest {
+  title: string
+  targetAmount: number
+  currentAmount: number
+  deadline: string
+  category: string
+  userId: number
+}
+
+export interface IGoalResponse {
+  id: number
+  title: string
+  targetAmount: number
+  currentAmount: number
+  deadline: string
+  category: string
+  userId: number
+}
+
 export default function MetasPage() {
   useAuth()
-  
-  const [goals, setGoals] = useState<Goal[]>([
-    {
-      id: 1,
-      title: "Viagem para Europa",
-      targetAmount: 15000,
-      currentAmount: 8500,
-      deadline: "2024-12-31",
-      category: "Viagem",
-    },
-    {
-      id: 2,
-      title: "Carro Novo",
-      targetAmount: 45000,
-      currentAmount: 12000,
-      deadline: "2025-06-30",
-      category: "Veículo",
-    },
-    {
-      id: 3,
-      title: "Reserva de Emergência",
-      targetAmount: 20000,
-      currentAmount: 8950,
-      deadline: "2024-08-31",
-      category: "Emergência",
-    },
-  ])
+
+  const [goals, setGoals] = useState<Goal[]>([])
 
   const [newGoal, setNewGoal] = useState({
     title: "",
     targetAmount: "",
+    currentAmount: "",
     deadline: "",
     category: "",
+    userId: "",
   })
+
+  const [userId, setUserId] = useState<number | null>(null)
+
+  useEffect(() => {
+    const storedId = localStorage.getItem("user_id")
+    if (storedId) {
+      const id = Number(storedId)
+      setUserId(id)
+
+      fetch(`http://localhost:3001/metas/${id}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Erro ao buscar contas")
+          return res.json()
+        })
+        .then((data: IGoalResponse[]) => {
+          setGoals(data)
+        })
+        .catch((err) => {
+          console.error("Erro ao carregar contas:", err)
+        })
+    } else {
+      console.error("Usuário não autenticado.")
+    }
+  }, [])
 
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   const { readPageContent } = useAccessibility()
 
-  const addGoal = () => {
+  const addGoal = async () => {
+    if (!userId) {
+      console.error("Usuário não autenticado.")
+      return
+    }
+
     if (newGoal.title && newGoal.targetAmount && newGoal.deadline) {
-      const goal: Goal = {
-        id: Date.now(),
+      const payload = {
         title: newGoal.title,
-        targetAmount: Number.parseFloat(newGoal.targetAmount),
-        currentAmount: 0,
+        targetAmount:Number(newGoal.targetAmount),
+        currentAmount: Number(newGoal.currentAmount),
         deadline: newGoal.deadline,
-        category: newGoal.category || "Geral",
+        category: newGoal.category,
+        userId: userId,
       }
-      setGoals([...goals, goal])
-      setNewGoal({ title: "", targetAmount: "", deadline: "", category: "" })
+
+      try {
+        const response = await fetch("http://localhost:3001/metas", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        })
+
+        if (!response.ok) {
+          throw new Error("Erro ao cadastrar conta")
+        }
+
+        const createdGoal = await response.json()
+
+        // Atualiza a lista com a nova meta vinda do backend
+        setGoals([...goals, createdGoal])
+        setNewGoal({ title: "", targetAmount: "", currentAmount: "", deadline: "", category: "", userId: "" })
+      } catch (error) {
+        console.error("Erro ao adicionar meta:", error)
+      }
     }
   }
 
@@ -89,12 +134,12 @@ export default function MetasPage() {
       const updatedGoals = goals.map((goal) =>
         goal.id === editingGoal.id
           ? {
-              ...goal,
-              title: newGoal.title,
-              targetAmount: Number.parseFloat(newGoal.targetAmount),
-              deadline: newGoal.deadline,
-              category: newGoal.category || "Geral",
-            }
+            ...goal,
+            title: newGoal.title,
+            targetAmount: Number.parseFloat(newGoal.targetAmount),
+            deadline: newGoal.deadline,
+            category: newGoal.category || "Geral",
+          }
           : goal,
       )
       setGoals(updatedGoals)

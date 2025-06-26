@@ -3,9 +3,36 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ArrowDown, ArrowUp, TrendingUp, TrendingDown } from "lucide-react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useAccessibility } from "@/hooks/use-accessibility"
 import { useAuth } from "@/hooks/useAuth"
+
+interface Account {
+  id: number
+  name: string
+  type: "Conta Corrente" | "Poupança" | "Cartão de crédito"
+  balance: number
+  bank: string
+  number: string
+}
+
+export interface IContaRequest {
+  name: string
+  type: "Conta Corrente" | "Poupança" | "Cartão de crédito"
+  balance: number
+  bank: string
+  number: string
+  userId: number
+}
+
+export interface IContaResponse {
+  id: number
+  name: string
+  type: "Conta Corrente" | "Poupança" | "Cartão de crédito"
+  balance: number
+  bank: string
+  number: string
+}
 
 const transactions = [
   { id: 1, description: "Salário", amount: 5800.0, type: "income", date: "2024-01-15", account: "Conta Corrente BB" },
@@ -46,16 +73,46 @@ const transactions = [
   { id: 8, description: "Farmácia", amount: -45.9, type: "expense", date: "2024-01-09", account: "Conta Corrente BB" },
 ]
 
-const accounts = [
-  { name: "Conta Corrente BB", balance: 5420.5, change: 12.5 },
-  { name: "Poupança Caixa", balance: 8950.25, change: 2.1 },
-  { name: "Cartão Nubank", balance: -1250.0, change: -8.3 },
-  { name: "Cartão Itaú", balance: -850.75, change: 15.2 },
-]
+// const accounts = [
+//   { name: "Conta Corrente BB", balance: 5420.5, change: 12.5 },
+//   { name: "Poupança Caixa", balance: 8950.25, change: 2.1 },
+//   { name: "Cartão Nubank", balance: -1250.0, change: -8.3 },
+//   { name: "Cartão Itaú", balance: -850.75, change: 15.2 },
+// ]
 
 export default function CarteiraPage() {
   useAuth()
-  
+
+  const [userId, setUserId] = useState<number | null>(null)
+  const [accounts, setAccounts] = useState<IContaRequest[]>([])
+
+  useEffect(() => {
+  const storedId = localStorage.getItem("user_id")
+
+  if (storedId) {
+    const id = Number(storedId)
+    setUserId(id)
+
+    fetch(`http://localhost:3001/contas/${id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro ao buscar contas")
+        return res.json()
+      })
+      .then((data: IContaResponse[]) => {
+        const contasComChange = data.map((conta) => ({
+          ...conta,
+          change: 0,
+        }))
+        setAccounts(contasComChange)
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar contas:", err)
+      })
+  } else {
+    console.error("Usuário não autenticado.")
+  }
+}, [])
+
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0)
   const { readPageContent } = useAccessibility()
 
@@ -88,7 +145,7 @@ export default function CarteiraPage() {
             <p className="text-sm text-muted-foreground mt-2">
               <span className="text-green-600 flex items-center gap-1">
                 <TrendingUp className="h-4 w-4" />
-                +8.7% em relação ao mês passado
+                0% em relação ao mês passado
               </span>
             </p>
           </CardContent>
@@ -132,13 +189,12 @@ export default function CarteiraPage() {
                 <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-4">
                     <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                        transaction.type === "income"
+                      className={`flex h-10 w-10 items-center justify-center rounded-full ${transaction.type === "income"
                           ? "bg-green-100"
                           : transaction.type === "transfer"
                             ? "bg-blue-100"
                             : "bg-red-100"
-                      }`}
+                        }`}
                     >
                       {transaction.type === "income" ? (
                         <ArrowUp className="h-5 w-5 text-green-600" />
