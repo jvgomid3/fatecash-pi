@@ -24,57 +24,68 @@ import { useAuth } from "@/hooks/useAuth"
 interface Account {
   id: number
   name: string
-  type: "checking" | "savings" | "credit"
+  type: "Conta Corrente" | "Poupança" | "Cartão de crédito"
   balance: number
   bank: string
   number: string
 }
 
+export interface IContaRequest {
+  name: string
+  type: "Conta Corrente" | "Poupança" | "Cartão de crédito"
+  balance: number
+  bank: string
+  number: string
+  userId: number
+}
+
+export interface IContaResponse {
+  id: number
+  name: string
+  type: "Conta Corrente" | "Poupança" | "Cartão de crédito"
+  balance: number
+  bank: string
+  number: string
+}
+
+
 export default function ContasCartoesPage() {
   useAuth()
-  
-  const [accounts, setAccounts] = useState<Account[]>([
-    {
-      id: 1,
-      name: "Conta Corrente Principal",
-      type: "checking",
-      balance: 5420.5,
-      bank: "Banco do Brasil",
-      number: "**** 1234",
-    },
-    {
-      id: 2,
-      name: "Poupança",
-      type: "savings",
-      balance: 8950.25,
-      bank: "Caixa Econômica",
-      number: "**** 5678",
-    },
-    {
-      id: 3,
-      name: "Cartão Nubank",
-      type: "credit",
-      balance: -1250.0,
-      bank: "Nubank",
-      number: "**** 9012",
-    },
-    {
-      id: 4,
-      name: "Cartão Itaú",
-      type: "credit",
-      balance: -850.75,
-      bank: "Itaú",
-      number: "**** 3456",
-    },
-  ])
+
+  const [accounts, setAccounts] = useState<IContaRequest[]>([])
 
   const [newAccount, setNewAccount] = useState({
     name: "",
-    type: "",
+    type: "" as "Conta Corrente" | "Poupança" | "Cartão de crédito" | "",
     balance: "",
     bank: "",
     number: "",
+    userId: ""
   })
+
+  const [userId, setUserId] = useState<number | null>(null)
+
+  useEffect(() => {
+  const storedId = localStorage.getItem("user_id")
+  if (storedId) {
+    const id = Number(storedId)
+    setUserId(id)
+
+    fetch(`http://localhost:3001/contas/${id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro ao buscar contas")
+        return res.json()
+      })
+      .then((data: IContaResponse[]) => {
+        setAccounts(data)
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar contas:", err)
+      })
+  } else {
+    console.error("Usuário não autenticado.")
+  }
+}, [])
 
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -82,39 +93,65 @@ export default function ContasCartoesPage() {
   const { readPageContent } = useAccessibility()
   const { speak } = useSpeechSynthesis()
 
-  const addAccount = () => {
+  const addAccount = async () => {
+    if (!userId) {
+      console.error("Usuário não autenticado.")
+      return
+    }
+
     if (newAccount.name && newAccount.type && newAccount.bank) {
-      const account: Account = {
-        id: Date.now(),
+      const payload = {
         name: newAccount.name,
-        type: newAccount.type as "checking" | "savings" | "credit",
+        type: newAccount.type as "Conta Corrente" | "Poupança" | "Cartão de crédito",
         balance: Number.parseFloat(newAccount.balance) || 0,
         bank: newAccount.bank,
         number: newAccount.number || "**** ****",
+        userId: userId,
       }
-      setAccounts([...accounts, account])
-      setNewAccount({ name: "", type: "", balance: "", bank: "", number: "" })
+
+      try {
+        const response = await fetch("http://localhost:3001/contas", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        })
+
+        if (!response.ok) {
+          throw new Error("Erro ao cadastrar conta")
+        }
+
+        const createdAccount = await response.json()
+
+        // Atualiza a lista com a nova conta vinda do backend
+        setAccounts([...accounts, createdAccount])
+        setNewAccount({ name: "", type: "", balance: "", bank: "", number: "", userId: "" })
+      } catch (error) {
+        console.error("Erro ao adicionar conta:", error)
+      }
     }
   }
+
 
   const editAccount = () => {
     if (editingAccount && newAccount.name && newAccount.type && newAccount.bank) {
       const updatedAccounts = accounts.map((account) =>
         account.id === editingAccount.id
           ? {
-              ...account,
-              name: newAccount.name,
-              type: newAccount.type as "checking" | "savings" | "credit",
-              balance: Number.parseFloat(newAccount.balance) || account.balance,
-              bank: newAccount.bank,
-              number: newAccount.number || "**** ****",
-            }
+            ...account,
+            name: newAccount.name,
+            type: newAccount.type as "Conta Corrente" | "Poupança" | "Cartão de crédito",
+            balance: Number.parseFloat(newAccount.balance) || account.balance,
+            bank: newAccount.bank,
+            number: newAccount.number || "**** ****",
+          }
           : account,
       )
       setAccounts(updatedAccounts)
       setEditingAccount(null)
       setIsEditDialogOpen(false)
-      setNewAccount({ name: "", type: "", balance: "", bank: "", number: "" })
+      setNewAccount({ name: "", type: "", balance: "", bank: "", number: "", userId: "" })
     }
   }
 
@@ -136,11 +173,11 @@ export default function ContasCartoesPage() {
 
   const getAccountTypeLabel = (type: string) => {
     switch (type) {
-      case "checking":
+      case "Conta Corrente":
         return "Conta Corrente"
-      case "savings":
+      case "Conta Poupança":
         return "Poupança"
-      case "credit":
+      case "Cartão de Crédito":
         return "Cartão de Crédito"
       default:
         return type
@@ -149,11 +186,11 @@ export default function ContasCartoesPage() {
 
   const getAccountTypeColor = (type: string) => {
     switch (type) {
-      case "checking":
+      case "Conta Corrente":
         return "bg-blue-100 text-blue-800"
-      case "savings":
+      case "Conta Poupança":
         return "bg-green-100 text-green-800"
-      case "credit":
+      case "Cartão de Crédito":
         return "bg-purple-100 text-purple-800"
       default:
         return "bg-gray-100 text-gray-800"
@@ -161,7 +198,7 @@ export default function ContasCartoesPage() {
   }
 
   const readAccountInfo = (account: Account) => {
-    const balanceType = account.type === "credit" ? "Fatura atual" : "Saldo disponível"
+    const balanceType = account.type === "Cartão de crédito" ? "Fatura atual" : "Saldo disponível"
     const accountText = `${account.name}. Tipo: ${getAccountTypeLabel(account.type)}. 
     Banco: ${account.bank}. Número: ${account.number}. 
     ${balanceType}: ${Math.abs(account.balance).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`
@@ -214,9 +251,9 @@ export default function ContasCartoesPage() {
                       <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="checking">Conta Corrente</SelectItem>
-                      <SelectItem value="savings">Poupança</SelectItem>
-                      <SelectItem value="credit">Cartão de Crédito</SelectItem>
+                      <SelectItem value="Conta Corrente">Conta Corrente</SelectItem>
+                      <SelectItem value="Conta Poupança">Poupança</SelectItem>
+                      <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -280,9 +317,9 @@ export default function ContasCartoesPage() {
                       <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="checking">Conta Corrente</SelectItem>
-                      <SelectItem value="savings">Poupança</SelectItem>
-                      <SelectItem value="credit">Cartão de Crédito</SelectItem>
+                      <SelectItem value="Conta Corrente">Conta Corrente</SelectItem>
+                      <SelectItem value="Conta Poupança">Poupança</SelectItem>
+                      <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -330,7 +367,7 @@ export default function ContasCartoesPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {account.type === "credit" ? (
+                    {account.type === "Cartão de crédito" ? (
                       <CreditCard className="h-5 w-5 text-purple-600" />
                     ) : (
                       <Landmark className="h-5 w-5 text-blue-600" />
@@ -362,13 +399,13 @@ export default function ContasCartoesPage() {
               <CardContent>
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    {account.type === "credit" ? "Fatura Atual" : "Saldo Disponível"}
+                    {account.type === "Cartão de crédito" ? "Fatura Atual" : "Saldo Disponível"}
                   </p>
                   <p className={`text-2xl font-bold ${account.balance >= 0 ? "text-green-600" : "text-red-600"}`}>
                     {account.balance >= 0 ? "+" : ""}
                     R$ {Math.abs(account.balance).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </p>
-                  {account.type === "credit" && account.balance < 0 && (
+                  {account.type === "Cartão de crédito" && account.balance < 0 && (
                     <p className="text-xs text-red-600">Vencimento: 15/02/2024</p>
                   )}
                 </div>
@@ -389,7 +426,7 @@ export default function ContasCartoesPage() {
                 <p className="text-2xl font-bold text-green-600">
                   R${" "}
                   {accounts
-                    .filter((acc) => acc.type !== "credit")
+                    .filter((acc) => acc.type !== "Cartão de crédito")
                     .reduce((sum, acc) => sum + acc.balance, 0)
                     .toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </p>
@@ -399,7 +436,7 @@ export default function ContasCartoesPage() {
                 <p className="text-2xl font-bold text-red-600">
                   R${" "}
                   {Math.abs(
-                    accounts.filter((acc) => acc.type === "credit").reduce((sum, acc) => sum + acc.balance, 0),
+                    accounts.filter((acc) => acc.type === "Cartão de crédito").reduce((sum, acc) => sum + acc.balance, 0),
                   ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </p>
               </div>

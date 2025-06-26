@@ -30,41 +30,33 @@ interface Debt {
   type: string
 }
 
+export interface IDebtRequest {
+  name: string
+  totalAmount: number
+  remainingAmount: number
+  monthlyPayment: number
+  dueDate: string
+  interestRate: number
+  type: string
+  userId: number
+}
+
+export interface IDebtResponse {
+  id: number
+  name: string
+  totalAmount: number
+  remainingAmount: number
+  monthlyPayment: number
+  dueDate: string
+  interestRate: number
+  type: string
+  userId: number
+}
+
 export default function DividasPage() {
   useAuth()
-  
-  const [debts, setDebts] = useState<Debt[]>([
-    {
-      id: 1,
-      name: "Financiamento do Carro",
-      totalAmount: 25000,
-      remainingAmount: 18500,
-      monthlyPayment: 650,
-      dueDate: "2026-12-31",
-      interestRate: 1.2,
-      type: "Financiamento",
-    },
-    {
-      id: 2,
-      name: "Cartão de Crédito Nubank",
-      totalAmount: 2500,
-      remainingAmount: 1250,
-      monthlyPayment: 300,
-      dueDate: "2024-06-15",
-      interestRate: 12.5,
-      type: "Cartão",
-    },
-    {
-      id: 3,
-      name: "Empréstimo Pessoal",
-      totalAmount: 8000,
-      remainingAmount: 3200,
-      monthlyPayment: 450,
-      dueDate: "2024-12-31",
-      interestRate: 2.8,
-      type: "Empréstimo",
-    },
-  ])
+
+  const [debts, setDebts] = useState<Debt[]>([])
 
   const [newDebt, setNewDebt] = useState({
     name: "",
@@ -76,25 +68,71 @@ export default function DividasPage() {
     type: "",
   })
 
+  const [userId, setUserId] = useState<number | null>(null)
+
+  useEffect(() => {
+    const storedId = localStorage.getItem("user_id")
+    if (storedId) {
+      const id = Number(storedId)
+      setUserId(id)
+
+      fetch(`http://localhost:3001/dividas/${id}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Erro ao buscar dividas")
+          return res.json()
+        })
+        .then((data: IDebtResponse[]) => {
+          setDebts(data)
+        })
+        .catch((err) => {
+          console.error("Erro ao carregar dividas:", err)
+        })
+    } else {
+      console.error("Usuário não autenticado.")
+    }
+  }, [])
+
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   const { readPageContent } = useAccessibility()
 
-  const addDebt = () => {
+  const addDebt = async () => {
+    if (!userId) {
+      console.error("Usuário não autenticado.")
+      return
+    }
+
     if (newDebt.name && newDebt.totalAmount && newDebt.remainingAmount) {
-      const debt: Debt = {
-        id: Date.now(),
+      const payload = {
         name: newDebt.name,
-        totalAmount: Number.parseFloat(newDebt.totalAmount),
-        remainingAmount: Number.parseFloat(newDebt.remainingAmount),
-        monthlyPayment: Number.parseFloat(newDebt.monthlyPayment) || 0,
+        totalAmount: Number(newDebt.totalAmount),
+        remainingAmount: Number(newDebt.remainingAmount),
+        monthlyPayment: Number(newDebt.monthlyPayment),
         dueDate: newDebt.dueDate,
-        interestRate: Number.parseFloat(newDebt.interestRate) || 0,
-        type: newDebt.type || "Outros",
+        interestRate: Number(newDebt.interestRate),
+        type: newDebt.type,
+        userId: userId,
       }
-      setDebts([...debts, debt])
-      setNewDebt({
+
+      try {
+        const response = await fetch("http://localhost:3001/dividas", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        })
+
+        if (!response.ok) {
+          throw new Error("Erro ao cadastrar divida")
+        }
+
+        const createdDebt = await response.json()
+
+        
+        setDebts([...debts, createdDebt])
+        setNewDebt({
         name: "",
         totalAmount: "",
         remainingAmount: "",
@@ -103,6 +141,9 @@ export default function DividasPage() {
         interestRate: "",
         type: "",
       })
+      } catch (error) {
+        console.error("Erro ao adicionar divida:", error)
+      }
     }
   }
 
@@ -111,15 +152,15 @@ export default function DividasPage() {
       const updatedDebts = debts.map((debt) =>
         debt.id === editingDebt.id
           ? {
-              ...debt,
-              name: newDebt.name,
-              totalAmount: Number.parseFloat(newDebt.totalAmount),
-              remainingAmount: Number.parseFloat(newDebt.remainingAmount),
-              monthlyPayment: Number.parseFloat(newDebt.monthlyPayment) || 0,
-              dueDate: newDebt.dueDate,
-              interestRate: Number.parseFloat(newDebt.interestRate) || 0,
-              type: newDebt.type || "Outros",
-            }
+            ...debt,
+            name: newDebt.name,
+            totalAmount: Number.parseFloat(newDebt.totalAmount),
+            remainingAmount: Number.parseFloat(newDebt.remainingAmount),
+            monthlyPayment: Number.parseFloat(newDebt.monthlyPayment) || 0,
+            dueDate: newDebt.dueDate,
+            interestRate: Number.parseFloat(newDebt.interestRate) || 0,
+            type: newDebt.type || "Outros",
+          }
           : debt,
       )
       setDebts(updatedDebts)
@@ -412,10 +453,10 @@ export default function DividasPage() {
               <div className="text-2xl font-bold text-green-600">
                 {debts.length > 0
                   ? (
-                      (debts.reduce((sum, debt) => sum + (debt.totalAmount - debt.remainingAmount), 0) /
-                        debts.reduce((sum, debt) => sum + debt.totalAmount, 0)) *
-                      100
-                    ).toFixed(1)
+                    (debts.reduce((sum, debt) => sum + (debt.totalAmount - debt.remainingAmount), 0) /
+                      debts.reduce((sum, debt) => sum + debt.totalAmount, 0)) *
+                    100
+                  ).toFixed(1)
                   : 0}
                 %
               </div>
