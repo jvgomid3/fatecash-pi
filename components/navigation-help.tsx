@@ -16,8 +16,7 @@ export function NavigationHelp() {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="fixed bottom-20 right-4 z-40" aria-label="Ajuda de navegação">
-          <HelpCircle className="h-4 w-4 mr-2" />
-          Ajuda
+          <HelpCircle className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">

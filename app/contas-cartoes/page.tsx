@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
-import { Plus, CreditCard, Landmark, Edit, Trash2, Volume2 } from "lucide-react"
+import { Plus, CreditCard, Landmark, Edit, Trash2, Volume2, Upload, Sparkles } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -45,9 +45,18 @@ export interface IContaResponse {
   type: "Conta Corrente" | "Poupança" | "Cartão de crédito"
   balance: number
   bank: string
-  number: string
+
 }
 
+interface ExtractedReceipt {
+  nome: string
+  valor_total: number
+  itens: Array<{
+    nome: string
+    quantidade: number
+    valor: number
+  }>
+}
 
 export default function ContasCartoesPage() {
   useAuth()
@@ -89,6 +98,13 @@ export default function ContasCartoesPage() {
 
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [receiptPreview, setReceiptPreview] = useState<string>("")
+  const [receiptError, setReceiptError] = useState<string>("")
+  const [isExtractingReceipt, setIsExtractingReceipt] = useState(false)
+  const [extractedReceipt, setExtractedReceipt] = useState<ExtractedReceipt | null>(null)
+  const [isDraggingReceipt, setIsDraggingReceipt] = useState(false)
+  const receiptInputRef = useRef<HTMLInputElement>(null)
 
   const { readPageContent } = useAccessibility()
   const { speak } = useSpeechSynthesis()
@@ -169,6 +185,119 @@ export default function ContasCartoesPage() {
 
   const deleteAccount = (id: number) => {
     setAccounts(accounts.filter((account) => account.id !== id))
+  }
+
+  const setReceiptFromFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setReceiptError("Selecione uma imagem da nota fiscal (JPG, PNG, etc).")
+      return
+    }
+
+    const previewUrl = URL.createObjectURL(file)
+    setReceiptFile(file)
+    setReceiptPreview(previewUrl)
+    setExtractedReceipt(null)
+    setReceiptError("")
+
+    // Permite selecionar o mesmo arquivo novamente e disparar onChange.
+    if (receiptInputRef.current) {
+      receiptInputRef.current.value = ""
+    }
+  }
+
+  const handleReceiptFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    setReceiptFromFile(file)
+  }
+
+  const handleReceiptDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDraggingReceipt(true)
+  }
+
+  const handleReceiptDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDraggingReceipt(false)
+  }
+
+  const handleReceiptDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDraggingReceipt(false)
+
+    const file = event.dataTransfer.files?.[0]
+    if (!file) {
+      return
+    }
+
+    setReceiptFromFile(file)
+  }
+
+  const openReceiptPicker = () => {
+    receiptInputRef.current?.click()
+  }
+
+  const extractReceiptInfo = async () => {
+    if (!receiptFile) {
+      setReceiptError("Faça upload de uma imagem de nota fiscal primeiro.")
+      return
+    }
+
+    setIsExtractingReceipt(true)
+    setReceiptError("")
+
+    try {
+      const imageBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+
+        reader.onload = () => {
+          const result = reader.result
+          if (typeof result !== "string") {
+            reject(new Error("Falha ao ler imagem da nota fiscal."))
+            return
+          }
+
+          const [, base64] = result.split(",")
+          if (!base64) {
+            reject(new Error("Formato inválido de imagem."))
+            return
+          }
+
+          resolve(base64)
+        }
+
+        reader.onerror = () => reject(new Error("Erro ao processar arquivo de imagem."))
+        reader.readAsDataURL(receiptFile)
+      })
+
+      const response = await fetch("/api/gemini/nota-fiscal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageBase64,
+          mimeType: receiptFile.type,
+        }),
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Não foi possível extrair os dados da nota fiscal.")
+      }
+
+      setExtractedReceipt(payload.data as ExtractedReceipt)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro inesperado ao extrair dados da nota fiscal."
+      setReceiptError(message)
+    } finally {
+      setIsExtractingReceipt(false)
+    }
   }
 
   const getAccountTypeLabel = (type: string) => {
@@ -450,6 +579,112 @@ export default function ContasCartoesPage() {
                 </p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Digitalizar Nota Fiscal com IA (Gemini)</CardTitle>
+            <CardDescription>Faça upload de uma notinha fiscal para extrair nome, itens e valor total.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="receipt-upload">Upload da nota fiscal</Label>
+              <input
+                id="receipt-upload"
+                ref={receiptInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleReceiptFileChange}
+              />
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={openReceiptPicker}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault()
+                    openReceiptPicker()
+                  }
+                }}
+                onDragOver={handleReceiptDragOver}
+                onDragLeave={handleReceiptDragLeave}
+                onDrop={handleReceiptDrop}
+                className={`group flex min-h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 ${
+                  isDraggingReceipt
+                    ? "border-green-500 bg-green-50"
+                    : "border-muted-foreground/30 bg-muted/30 hover:border-green-400 hover:bg-green-50/70"
+                }`}
+                aria-label="Arraste ou selecione imagem da nota fiscal"
+              >
+                <Upload
+                  className={`h-7 w-7 transition-transform duration-200 ${isDraggingReceipt ? "scale-110 text-green-600" : "text-muted-foreground group-hover:scale-105 group-hover:text-green-600"}`}
+                />
+                <p className="text-sm font-medium">Arraste a nota fiscal aqui ou clique para selecionar</p>
+                <p className="text-xs text-muted-foreground">Formatos aceitos: JPG, PNG, WEBP</p>
+                {receiptFile && <p className="text-xs font-medium text-green-700">Arquivo: {receiptFile.name}</p>}
+              </div>
+            </div>
+
+            {receiptPreview && (
+              <div className="rounded-md border p-2">
+                <img
+                  src={receiptPreview || "/placeholder.svg"}
+                  alt="Pré-visualização da nota fiscal"
+                  className="max-h-80 w-full object-contain rounded-md"
+                />
+              </div>
+            )}
+
+            <Button onClick={extractReceiptInfo} disabled={!receiptFile || isExtractingReceipt} className="w-full">
+              {isExtractingReceipt ? (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
+                  Extraindo dados com Gemini...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Digitalizar Nota Fiscal
+                </>
+              )}
+            </Button>
+
+            {receiptError && <p className="text-sm text-red-600">{receiptError}</p>}
+
+            {extractedReceipt && (
+              <div className="rounded-md border p-4 space-y-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Nome</p>
+                  <p className="font-semibold">{extractedReceipt.nome}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Itens</p>
+                  <div className="space-y-2">
+                    {extractedReceipt.itens.map((item, index) => (
+                      <div key={`${item.nome}-${index}`} className="flex items-center justify-between rounded-sm border p-2 text-sm">
+                        <span>{item.nome}</span>
+                        <span>
+                          {item.quantidade}x • {item.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </span>
+                      </div>
+                    ))}
+                    {extractedReceipt.itens.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Nenhum item identificado na nota fiscal.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm text-muted-foreground">Valor Total</p>
+                  <p className="font-semibold text-green-600">
+                    {extractedReceipt.valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
